@@ -15,6 +15,9 @@ namespace WirelessCrcpy
         {
             ThreadPool.QueueUserWorkItem(state =>
             {
+                string tempZip = Path.Combine(Path.GetTempPath(), "scrcpy_win64_" + Guid.NewGuid().ToString("N") + ".zip");
+                string tempExtract = Path.Combine(Path.GetTempPath(), "scrcpy_extracted_" + Guid.NewGuid().ToString("N"));
+
                 try
                 {
                     ServicePointManager.SecurityProtocol = SecurityProtocolType.Tls12 | (SecurityProtocolType)3072;
@@ -23,8 +26,6 @@ namespace WirelessCrcpy
                     {
                         Directory.CreateDirectory(targetDir);
                     }
-
-                    string tempZip = Path.Combine(Path.GetTempPath(), "scrcpy_win64_" + Guid.NewGuid().ToString("N") + ".zip");
 
                     using (var client = new WebClient())
                     {
@@ -60,7 +61,6 @@ namespace WirelessCrcpy
                     }
 
                     // Extract zip
-                    string tempExtract = Path.Combine(Path.GetTempPath(), "scrcpy_extracted_" + Guid.NewGuid().ToString("N"));
                     Directory.CreateDirectory(tempExtract);
                     ZipFile.ExtractToDirectory(tempZip, tempExtract);
 
@@ -74,10 +74,6 @@ namespace WirelessCrcpy
                         File.Copy(file, destFile, true);
                     }
 
-                    // Clean temp files
-                    try { File.Delete(tempZip); } catch { }
-                    try { Directory.Delete(tempExtract, true); } catch { }
-
                     if (onComplete != null)
                     {
                         onComplete(true, "Successfully installed scrcpy to " + targetDir);
@@ -89,6 +85,11 @@ namespace WirelessCrcpy
                     {
                         onComplete(false, "Download failed: " + ex.Message);
                     }
+                }
+                finally
+                {
+                    try { if (File.Exists(tempZip)) File.Delete(tempZip); } catch { }
+                    try { if (Directory.Exists(tempExtract)) Directory.Delete(tempExtract, true); } catch { }
                 }
             });
         }

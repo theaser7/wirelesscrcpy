@@ -21,9 +21,11 @@ namespace WirelessCrcpy
 
         private ConnectionState _currentState = ConnectionState.Disconnected;
         private readonly object _stateLock = new object();
+        private readonly SynchronizationContext _syncContext;
 
         public TrayAppContext()
         {
+            _syncContext = SynchronizationContext.Current ?? new SynchronizationContext();
             _settingsManager = new SettingsManager();
             _settings = _settingsManager.Load();
             _scrcpyManager = new ScrcpyManager();
@@ -88,10 +90,12 @@ namespace WirelessCrcpy
             {
                 if (_currentState == ConnectionState.Connected || _currentState == ConnectionState.Connecting)
                 {
+                    _currentState = ConnectionState.Disconnected;
                     DisconnectAsync();
                 }
                 else
                 {
+                    _currentState = ConnectionState.Connecting;
                     ConnectAsync();
                 }
             }
@@ -104,23 +108,29 @@ namespace WirelessCrcpy
                 _currentState = newState;
             }
 
-            // Update UI elements on main thread
-            _trayIcon.Icon = IconHelper.GetStatusIcon(newState);
-            _trayIcon.Text = TruncateText("wirelesscrcpy - " + statusText, 63);
-            _itemStatus.Text = "Status: " + statusText;
+            _syncContext.Post(s =>
+            {
+                try
+                {
+                    _trayIcon.Icon = IconHelper.GetStatusIcon(newState);
+                    _trayIcon.Text = TruncateText("wirelesscrcpy - " + statusText, 63);
+                    _itemStatus.Text = "Status: " + statusText;
 
-            if (newState == ConnectionState.Connected)
-            {
-                _itemToggleConnect.Text = "Disconnect";
-            }
-            else if (newState == ConnectionState.Connecting)
-            {
-                _itemToggleConnect.Text = "Connecting...";
-            }
-            else
-            {
-                _itemToggleConnect.Text = "Connect";
-            }
+                    if (newState == ConnectionState.Connected)
+                    {
+                        _itemToggleConnect.Text = "Disconnect";
+                    }
+                    else if (newState == ConnectionState.Connecting)
+                    {
+                        _itemToggleConnect.Text = "Connecting...";
+                    }
+                    else
+                    {
+                        _itemToggleConnect.Text = "Connect";
+                    }
+                }
+                catch { }
+            }, null);
         }
 
         private void ConnectAsync()
@@ -258,7 +268,14 @@ namespace WirelessCrcpy
 
         private void ShowNotification(string title, string text, ToolTipIcon icon)
         {
-            _trayIcon.ShowBalloonTip(3000, title, text, icon);
+            _syncContext.Post(s =>
+            {
+                try
+                {
+                    _trayIcon.ShowBalloonTip(3000, title, text, icon);
+                }
+                catch { }
+            }, null);
         }
 
         private static string TruncateText(string text, int maxLength)

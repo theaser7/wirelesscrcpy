@@ -33,6 +33,21 @@
 
 ## System Architecture
 
+### Dependency Management
+- Application checks for `scrcpy.exe` and `adb.exe`:
+  1. Next to the application in a `scrcpy/` subfolder.
+  2. In system `PATH`.
+  3. Custom path defined in `settings.json`.
+- If missing, the Settings dialog provides a 1-click **"Download scrcpy"** button that downloads and extracts the official GitHub release zip automatically into `scrcpy/`.
+
+### Lifecycle and Reconnection
+- **Process Monitoring:** When `scrcpy` process exits (e.g. user closes mirror window or connection lost), `wirelesscrcpy` detects it immediately via `Process.Exited`, transitions state back to `Disconnected`, updates icon to Gray/Red, and sends a notification if it exited unexpectedly.
+- **Auto-Cleanup:** Option to keep ADB connected or cleanly `adb disconnect` on scrcpy exit (configurable, default: clean disconnect).
+
+### IP and Device Setup
+- Stores target Phone IP and Port in `settings.json`.
+- Includes a helper button **"Fetch IP via USB"** (`adb shell ip -f inet addr show wlan0` and `adb tcpip 5555`) so the user can connect once via USB, click one button to configure wireless, and never need the cable again!
+
 ### Components
 1. **TrayController (`TrayApplicationContext`):**
    - Manages `NotifyIcon`, dynamic icon generation/loading, tooltip updates, and context menu.

@@ -13,7 +13,7 @@ if "%1"=="clean" goto :clean
 :build_app
 if not exist "bin\Release" mkdir "bin\Release"
 echo [BUILD] Compiling wirelesscrcpy.exe...
-"%CSC%" /nologo /target:winexe /out:bin\Release\wirelesscrcpy.exe /platform:anycpu ^
+"%CSC%" /nologo /target:winexe /main:WirelessCrcpy.Program /out:bin\Release\wirelesscrcpy.exe /platform:anycpu ^
     /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.FileSystem.dll ^
     /recurse:src\*.cs
 if %ERRORLEVEL% neq 0 (
@@ -26,7 +26,7 @@ exit /b 0
 :run_tests
 if not exist "bin\Test" mkdir "bin\Test"
 echo [TEST] Compiling tests...
-"%CSC%" /nologo /target:exe /out:bin\Test\Tests.exe /platform:anycpu ^
+"%CSC%" /nologo /target:exe /main:WirelessCrcpy.Tests.TestRunner /out:bin\Test\Tests.exe /platform:anycpu ^
     /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.FileSystem.dll ^
     /recurse:src\*.cs /recurse:tests\*.cs
 if %ERRORLEVEL% neq 0 (

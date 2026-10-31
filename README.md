@@ -25,7 +25,7 @@ A lightweight, single-click Windows system tray utility for wireless Android scr
 
 ## Quick Start
 
-1. Run `wirelesscrcpy.exe`. The app appears in your Windows system tray (near the clock).
+1. Run `wirelesscrcpy.exe`. The app appears in your Windows system tray.
 2. Right-click the tray icon and select **Settings...**
 3. Configure your phone's Wi-Fi IP address:
    - **Easy method:** Plug your phone in with USB (with USB Debugging turned on), click **Setup via USB in 1-Click**, then unplug the cable when finished.

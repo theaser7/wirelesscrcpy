@@ -52,6 +52,16 @@ namespace WirelessCrcpy.Tests
                 failed++;
             }
 
+            try
+            {
+                TestIcons.RunTests();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[FAIL] TestIcons: " + ex.Message);
+                failed++;
+            }
+
             if (failed > 0)
             {
                 Console.WriteLine(string.Format("FAILED: {0} tests failed.", failed));

@@ -14,7 +14,7 @@ if "%1"=="clean" goto :clean
 if not exist "bin\Release" mkdir "bin\Release"
 echo [BUILD] Compiling wirelesscrcpy.exe...
 "%CSC%" /nologo /target:winexe /out:bin\Release\wirelesscrcpy.exe /platform:anycpu ^
-    /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll ^
+    /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.FileSystem.dll ^
     /recurse:src\*.cs
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Build failed!
@@ -27,7 +27,7 @@ exit /b 0
 if not exist "bin\Test" mkdir "bin\Test"
 echo [TEST] Compiling tests...
 "%CSC%" /nologo /target:exe /out:bin\Test\Tests.exe /platform:anycpu ^
-    /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll ^
+    /r:System.dll /r:System.Core.dll /r:System.Drawing.dll /r:System.Windows.Forms.dll /r:System.Web.Extensions.dll /r:System.IO.Compression.FileSystem.dll ^
     /recurse:src\*.cs /recurse:tests\*.cs
 if %ERRORLEVEL% neq 0 (
     echo [ERROR] Test compilation failed!

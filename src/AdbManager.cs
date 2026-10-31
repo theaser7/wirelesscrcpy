@@ -126,12 +126,19 @@ namespace WirelessCrcpy
             return RunAdbCommand(adbPath, "disconnect " + target, out stdout, out stderr, 4000);
         }
 
-        public static bool EnableTcpIp(string adbPath, int port, out string error)
+        public static bool EnableTcpIp(string adbPath, int port, out string error, string targetSerial = null)
         {
             string stdout, stderr;
-            bool ok = RunAdbCommand(adbPath, "tcpip " + port, out stdout, out stderr, 6000);
-            string combined = (stdout + " " + stderr).ToLower();
+            string prefix = !string.IsNullOrEmpty(targetSerial) ? string.Format("-s {0} ", targetSerial) : "-d ";
+            bool ok = RunAdbCommand(adbPath, prefix + "tcpip " + port, out stdout, out stderr, 6000);
 
+            // Fallback without -d if -d failed because no USB prefix was recognized
+            if (!ok && string.IsNullOrEmpty(targetSerial))
+            {
+                ok = RunAdbCommand(adbPath, "tcpip " + port, out stdout, out stderr, 6000);
+            }
+
+            string combined = (stdout + " " + stderr).ToLower();
             if (combined.Contains("restarting in tcp mode") || combined.Contains("restarting in tcpip port"))
             {
                 error = string.Empty;
@@ -143,20 +150,44 @@ namespace WirelessCrcpy
             return false;
         }
 
-        public static bool DetectDeviceWifiIp(string adbPath, out string detectedIp, out string error)
+        public static bool DetectDeviceWifiIp(string adbPath, out string detectedIp, out string error, out string targetSerial)
         {
             detectedIp = string.Empty;
             error = string.Empty;
+            targetSerial = null;
+
+            // Query devices list to find active USB device
+            string devOut, devErr;
+            RunAdbCommand(adbPath, "devices -l", out devOut, out devErr, 4000);
+            targetSerial = FindActiveUsbDeviceSerial(devOut);
+
+            string targetPrefix = !string.IsNullOrEmpty(targetSerial) 
+                ? string.Format("-s {0} ", targetSerial) 
+                : "-d ";
 
             string stdout, stderr;
-            // First try querying wlan0 inet address directly
-            RunAdbCommand(adbPath, "shell ip -f inet addr show wlan0", out stdout, out stderr, 4000);
+            // 1. Try querying wlan0 directly
+            RunAdbCommand(adbPath, targetPrefix + "shell ip -f inet addr show wlan0", out stdout, out stderr, 4000);
             detectedIp = ParseWifiIpFromOutput(stdout);
 
+            // 2. Try querying all interfaces
             if (string.IsNullOrEmpty(detectedIp))
             {
-                // Fall back to ip route
-                RunAdbCommand(adbPath, "shell ip route", out stdout, out stderr, 4000);
+                RunAdbCommand(adbPath, targetPrefix + "shell ip -f inet addr show", out stdout, out stderr, 4000);
+                detectedIp = ParseWifiIpFromOutput(stdout);
+            }
+
+            // 3. Try ip route
+            if (string.IsNullOrEmpty(detectedIp))
+            {
+                RunAdbCommand(adbPath, targetPrefix + "shell ip route", out stdout, out stderr, 4000);
+                detectedIp = ParseWifiIpFromOutput(stdout);
+            }
+
+            // 4. Try getprop dhcp.wlan0.ipaddress
+            if (string.IsNullOrEmpty(detectedIp))
+            {
+                RunAdbCommand(adbPath, targetPrefix + "shell getprop dhcp.wlan0.ipaddress", out stdout, out stderr, 4000);
                 detectedIp = ParseWifiIpFromOutput(stdout);
             }
 
@@ -165,29 +196,108 @@ namespace WirelessCrcpy
                 return true;
             }
 
-            error = !string.IsNullOrEmpty(stderr) ? stderr.Trim() : "No Wi-Fi IP address detected on USB device.";
+            // If targetPrefix failed, provide clear diagnostic message
+            error = !string.IsNullOrEmpty(stderr) ? stderr.Trim() : (!string.IsNullOrEmpty(stdout) ? stdout.Trim() : "No Wi-Fi IP address detected on USB device.");
             return false;
+        }
+
+        public static bool DetectDeviceWifiIp(string adbPath, out string detectedIp, out string error)
+        {
+            string serial;
+            return DetectDeviceWifiIp(adbPath, out detectedIp, out error, out serial);
+        }
+
+        public static string FindActiveUsbDeviceSerial(string devicesOutput)
+        {
+            var list = ParseDevicesOutput(devicesOutput);
+            // First look for active USB device (not containing colon)
+            foreach (var dev in list)
+            {
+                if (dev.State.Equals("device", StringComparison.OrdinalIgnoreCase) && dev.IsUsb)
+                {
+                    return dev.Serial;
+                }
+            }
+
+            // Next look for any active device
+            foreach (var dev in list)
+            {
+                if (dev.State.Equals("device", StringComparison.OrdinalIgnoreCase))
+                {
+                    return dev.Serial;
+                }
+            }
+
+            return null;
+        }
+
+        public class AdbDevice
+        {
+            public string Serial { get; set; }
+            public string State { get; set; }
+            public bool IsUsb { get { return Serial != null && !Serial.Contains(":"); } }
+        }
+
+        public static System.Collections.Generic.List<AdbDevice> ParseDevicesOutput(string output)
+        {
+            var result = new System.Collections.Generic.List<AdbDevice>();
+            if (string.IsNullOrEmpty(output)) return result;
+
+            string[] lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (string line in lines)
+            {
+                string trimmed = line.Trim();
+                if (trimmed.StartsWith("List of devices") || trimmed.StartsWith("*"))
+                    continue;
+
+                string[] parts = Regex.Split(trimmed, @"\s+");
+                if (parts.Length >= 2)
+                {
+                    result.Add(new AdbDevice
+                    {
+                        Serial = parts[0],
+                        State = parts[1]
+                    });
+                }
+            }
+
+            return result;
         }
 
         public static string ParseWifiIpFromOutput(string output)
         {
             if (string.IsNullOrEmpty(output)) return string.Empty;
 
-            // Pattern for inet 192.168.x.x/24
-            var matchInet = Regex.Match(output, @"inet\s+([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})");
-            if (matchInet.Success && !matchInet.Groups[1].Value.StartsWith("127."))
-            {
-                return matchInet.Groups[1].Value;
-            }
-
-            // Pattern for src 192.168.x.x in ip route
-            var matchRoute = Regex.Match(output, @"src\s+([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})");
-            if (matchRoute.Success && !matchRoute.Groups[1].Value.StartsWith("127."))
+            // 1. Check "src <ip>" from ip route output
+            var matchRoute = Regex.Match(output, @"\bsrc\s+([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\b");
+            if (matchRoute.Success && IsValidHostIp(matchRoute.Groups[1].Value))
             {
                 return matchRoute.Groups[1].Value;
             }
 
+            // 2. Check "inet <ip>" from ip addr output
+            var matchInet = Regex.Match(output, @"\binet\s+([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})");
+            if (matchInet.Success && IsValidHostIp(matchInet.Groups[1].Value))
+            {
+                return matchInet.Groups[1].Value;
+            }
+
+            // 3. Fallback to any private IPv4 host address
+            var matchPrivate = Regex.Match(output, @"\b(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(?:1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})\b");
+            if (matchPrivate.Success && IsValidHostIp(matchPrivate.Groups[1].Value))
+            {
+                return matchPrivate.Groups[1].Value;
+            }
+
             return string.Empty;
+        }
+
+        private static bool IsValidHostIp(string ip)
+        {
+            if (string.IsNullOrEmpty(ip)) return false;
+            if (ip.StartsWith("127.") || ip.Equals("0.0.0.0")) return false;
+            if (ip.EndsWith(".0") || ip.EndsWith(".255")) return false;
+            return true;
         }
 
         public static bool IsConnectSuccessOutput(string output)

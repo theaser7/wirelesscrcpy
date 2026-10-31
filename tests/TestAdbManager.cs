@@ -14,6 +14,40 @@ namespace WirelessCrcpy.Tests
 
             TestConnectOutputSuccessEvaluation();
             Console.WriteLine("[PASS] TestConnectOutputSuccessEvaluation");
+
+            TestParseDevicesListWithMultipleAndOffline();
+            Console.WriteLine("[PASS] TestParseDevicesListWithMultipleAndOffline");
+
+            TestPrivateIpRangeDetection();
+            Console.WriteLine("[PASS] TestPrivateIpRangeDetection");
+        }
+
+        private static void TestParseDevicesListWithMultipleAndOffline()
+        {
+            string output =
+                "List of devices attached\n" +
+                "85.21.168.138:5555     offline transport_id:4\n" +
+                "91.211.114.212:5555    offline transport_id:1\n" +
+                "R58M34ABCD             device usb:1-1 product:a52sxq model:SM_A528B device:a52sxq transport_id:2\n";
+
+            var devices = AdbManager.ParseDevicesOutput(output);
+            if (devices.Count != 3)
+                throw new Exception("Expected 3 devices parsed, got: " + devices.Count);
+
+            string usbSerial = AdbManager.FindActiveUsbDeviceSerial(output);
+            if (usbSerial != "R58M34ABCD")
+                throw new Exception("Expected USB serial R58M34ABCD, got: " + usbSerial);
+        }
+
+        private static void TestPrivateIpRangeDetection()
+        {
+            string output10 = "inet 10.0.0.45/24 brd 10.0.0.255 scope global wlan0";
+            if (AdbManager.ParseWifiIpFromOutput(output10) != "10.0.0.45")
+                throw new Exception("Failed to parse 10.x.x.x IP");
+
+            string output172 = "inet 172.20.10.2/28 brd 172.20.10.15 scope global wlan1";
+            if (AdbManager.ParseWifiIpFromOutput(output172) != "172.20.10.2")
+                throw new Exception("Failed to parse 172.x.x.x IP");
         }
 
         private static void TestIpParsingFromWlan0Output()

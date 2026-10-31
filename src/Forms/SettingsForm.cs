@@ -282,14 +282,18 @@ namespace WirelessCrcpy
 
             ThreadPool.QueueUserWorkItem(state =>
             {
+                // Disconnect stale offline wireless devices if any
+                AdbManager.Disconnect(adbPath, "", 0);
+
                 string detectedIp;
                 string error;
-                bool ok = AdbManager.DetectDeviceWifiIp(adbPath, out detectedIp, out error);
+                string targetSerial;
+                bool ok = AdbManager.DetectDeviceWifiIp(adbPath, out detectedIp, out error, out targetSerial);
 
                 if (ok && !string.IsNullOrEmpty(detectedIp))
                 {
                     string tcpError;
-                    bool tcpOk = AdbManager.EnableTcpIp(adbPath, (int)_numPort.Value, out tcpError);
+                    bool tcpOk = AdbManager.EnableTcpIp(adbPath, (int)_numPort.Value, out tcpError, targetSerial);
 
                     this.Invoke(new Action(() =>
                     {
@@ -300,7 +304,7 @@ namespace WirelessCrcpy
                         {
                             _txtDeviceIp.Text = detectedIp;
                             MessageBox.Show(this,
-                                string.Format("Success!\r\n\r\nDevice IP detected: {0}\r\nWireless port {1} opened.\r\n\r\nYou can now disconnect the USB cable and click Save!", detectedIp, (int)_numPort.Value),
+                                string.Format("Success!\r\n\r\nDevice IP detected: {0}\r\nWireless port {1} opened on device {2}.\r\n\r\nYou can now disconnect the USB cable and click Save!", detectedIp, (int)_numPort.Value, !string.IsNullOrEmpty(targetSerial) ? targetSerial : "USB"),
                                 "USB Configuration Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
                         }
                         else

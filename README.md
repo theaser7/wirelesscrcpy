@@ -57,4 +57,4 @@ Compiled binary output:
 
 ## License
 
-MIT License. Built for seamless wireless screen mirroring.
+GNU General Public License v3.0 (GPL-3.0). See [LICENSE](LICENSE) for details. Built for seamless wireless screen mirroring.

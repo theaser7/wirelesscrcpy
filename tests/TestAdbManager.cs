@@ -27,7 +27,7 @@ namespace WirelessCrcpy.Tests
             string output =
                 "List of devices attached\n" +
                 "85.21.168.138:5555     offline transport_id:4\n" +
-                "91.211.114.212:5555    offline transport_id:1\n" +
+                "91.211.114.212:5555    unauthorized transport_id:1\n" +
                 "R58M34ABCD             device usb:1-1 product:a52sxq model:SM_A528B device:a52sxq transport_id:2\n";
 
             var devices = AdbManager.ParseDevicesOutput(output);
@@ -37,6 +37,14 @@ namespace WirelessCrcpy.Tests
             string usbSerial = AdbManager.FindActiveUsbDeviceSerial(output);
             if (usbSerial != "R58M34ABCD")
                 throw new Exception("Expected USB serial R58M34ABCD, got: " + usbSerial);
+
+            string unauthSerial = AdbManager.FindUnauthorizedUsbDeviceSerial(output);
+            if (unauthSerial != null) // 91.211.114.212 is not USB because it has ':'
+                throw new Exception("Expected null unauthorized USB, but got: " + unauthSerial);
+
+            string usbUnauthOutput = "List of devices attached\nRF8N1234567\tunauthorized usb:1-1\n";
+            if (AdbManager.FindUnauthorizedUsbDeviceSerial(usbUnauthOutput) != "RF8N1234567")
+                throw new Exception("Expected RF8N1234567 to be detected as unauthorized USB");
         }
 
         private static void TestPrivateIpRangeDetection()

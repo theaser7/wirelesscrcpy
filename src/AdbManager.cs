@@ -159,11 +159,22 @@ namespace WirelessCrcpy
             // Query devices list to find active USB device
             string devOut, devErr;
             RunAdbCommand(adbPath, "devices -l", out devOut, out devErr, 4000);
-            targetSerial = FindActiveUsbDeviceSerial(devOut);
 
-            string targetPrefix = !string.IsNullOrEmpty(targetSerial) 
-                ? string.Format("-s {0} ", targetSerial) 
-                : "-d ";
+            string unauthSerial = FindUnauthorizedUsbDeviceSerial(devOut);
+            if (!string.IsNullOrEmpty(unauthSerial))
+            {
+                error = string.Format("Device {0} is UNAUTHORIZED.\r\n\r\nUnlock your phone screen and tap 'Allow USB debugging' (check 'Always allow from this computer').", unauthSerial);
+                return false;
+            }
+
+            targetSerial = FindActiveUsbDeviceSerial(devOut);
+            if (string.IsNullOrEmpty(targetSerial))
+            {
+                error = "No Android device detected over USB by ADB.\r\n\r\nPlease check:\r\n1. Unlock phone and switch USB mode to 'File Transfer (MTP)' in notification drawer.\r\n2. Verify 'USB Debugging' is ON in Developer Options.\r\n3. Try reconnecting the USB cable to another USB port.";
+                return false;
+            }
+
+            string targetPrefix = string.Format("-s {0} ", targetSerial);
 
             string stdout, stderr;
             // 1. Try querying wlan0 directly
@@ -228,6 +239,19 @@ namespace WirelessCrcpy
                 }
             }
 
+            return null;
+        }
+
+        public static string FindUnauthorizedUsbDeviceSerial(string devicesOutput)
+        {
+            var list = ParseDevicesOutput(devicesOutput);
+            foreach (var dev in list)
+            {
+                if (dev.State.Equals("unauthorized", StringComparison.OrdinalIgnoreCase) && dev.IsUsb)
+                {
+                    return dev.Serial;
+                }
+            }
             return null;
         }
 

@@ -320,8 +320,7 @@ namespace WirelessCrcpy
                     {
                         _btnUsbSetup.Enabled = true;
                         _btnUsbSetup.Text = "Setup via USB in 1-Click (Auto-detect IP & Enable Wi-Fi)";
-                        MessageBox.Show(this, "Could not detect USB device Wi-Fi IP.\r\n\r\nMake sure:\r\n1. USB debugging is enabled on phone.\r\n2. Phone is connected via USB.\r\n3. Phone is connected to your Wi-Fi.\r\n\r\nError details: " + error,
-                            "Device Not Found", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        MessageBox.Show(this, error, "USB Device Setup", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     }));
                 }
             });

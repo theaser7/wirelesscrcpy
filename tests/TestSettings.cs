@@ -42,6 +42,16 @@ namespace WirelessCrcpy.Tests
                 failed++;
             }
 
+            try
+            {
+                TestScrcpyManager.RunTests();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("[FAIL] TestScrcpyManager: " + ex.Message);
+                failed++;
+            }
+
             if (failed > 0)
             {
                 Console.WriteLine(string.Format("FAILED: {0} tests failed.", failed));
